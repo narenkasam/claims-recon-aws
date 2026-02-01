@@ -1,0 +1,18 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Env / secrets
+.env
+.env.*
+
+# Local outputs
+out/
+out_pg/
+tmp/
+work/
+logs/
+
+# Docker local
+pgdata/

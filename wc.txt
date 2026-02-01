@@ -1,0 +1,132 @@
+PGHOST: claims-recon-postgres-dev.cyf68e8ma4xx.us-east-1.rds.amazonaws.com
+
+<account-id>.dkr.ecr.us-east-1.amazonaws.com
+URL: 1721-7267-3968.dkr.ecr.us-east-1.amazonaws.com
+
+--Docker Build
+aws ecr get-login-password --region us-east-1 |
+docker login --username AWS --password-stdin 172172673968.dkr.ecr.us-east-1.amazonaws.com
+
+aws sts get-caller-identity
+
+# 1) build (use the same ECR repo + tag you already use)
+docker build -t claims-recon-pipeline:devlatest .
+
+# 2) tag to ECR
+docker tag claims-recon-pipeline:devlatest 172172673968.dkr.ecr.us-east-1.amazonaws.com/claims-recon-pipeline:v7
+
+# 3) push
+docker push 172172673968.dkr.ecr.us-east-1.amazonaws.com/claims-recon-pipeline:v7
+		   
+		   Env var	Secret value
+PGHOST	claims-recon/dev/postgres:PGHOST::
+PGPORT	claims-recon/dev/postgres:PGPORT::
+PGDATABASE	claims-recon/dev/postgres:PGDATABASE::
+PGUSER	claims-recon/dev/postgres:PGUSER::
+PGPASSWORD	claims-recon/dev/postgres:PGPASSWORD::
+
+
+docker push 172172673968.dkr.ecr.us-east-1.amazonaws.com/claims-recon:v6
+
+
+
+docker build -t 172172673968.dkr.ecr.us-east-1.amazonaws.com/claims-recon-pipeline:v6 .
+docker push 172172673968.dkr.ecr.us-east-1.amazonaws.com/claims-recon-pipeline:v6
+
+
+# 1) build (use the same ECR repo + tag you already use)
+docker build -t claims-recon-pipeline:dev .
+
+# 2) tag to ECR
+docker tag claims-recon-pipeline:dev 172172673968.dkr.ecr.us-east-1.amazonaws.com/claims-recon-pipeline:dev
+
+# 3) push
+docker push 172172673968.dkr.ecr.us-east-1.amazonaws.com/claims-recon-pipeline:dev
+
+--Posrgres Queries
+SELECT schema_name
+FROM information_schema.schemata
+WHERE schema_name IN ('stage','canon','metrics');
+
+
+-- latest runs
+SELECT run_ts, run_date, dataset, status, left(message, 120) AS msg
+FROM metrics.pipeline_run_log
+ORDER BY run_ts DESC
+LIMIT 25;
+
+-- show failures
+SELECT *
+FROM metrics.pipeline_run_log
+WHERE status = 'FAILED'
+ORDER BY run_ts DESC;
+
+SELECT run_ts, run_date, dataset, status, left(message, 120) AS msg
+FROM metrics.pipeline_run_log
+ORDER BY run_ts DESC
+LIMIT 10;
+
+SELECT *
+FROM metrics.recon_summary
+ORDER BY run_date DESC
+LIMIT 10;
+
+
+SELECT 'raw_daily_old' AS table_name, COUNT(*) AS row_count
+FROM stage.raw_daily_old
+UNION ALL
+SELECT 'raw_daily_new', COUNT(*)
+FROM stage.raw_daily_new;
+
+SELECT COUNT(*) AS matched_rows
+FROM stage.v_old o
+JOIN stage.v_new n
+USING (key_text);
+
+SELECT COUNT(*) AS rows
+FROM metrics.mismatch_detail_sample;
+
+SELECT
+  d.run_date,
+  d.dataset,
+  d.key_text,
+  d.record_status,
+  kv.key   AS column_name,
+  kv.value AS old_new_value
+FROM metrics.mismatch_detail_sample d
+CROSS JOIN LATERAL jsonb_each_text(d.payload) kv
+ORDER BY d.run_date DESC, d.key_text, kv.key
+LIMIT 5000;
+
+SELECT
+  run_date, dataset, key_text,
+  CASE
+    WHEN record_status = 'MATCHED' AND payload <> '{}'::jsonb THEN 'MISMATCHED'
+    ELSE record_status
+  END AS corrected_status,
+  column_name, old_new_value
+FROM (
+  SELECT
+    d.run_date, d.dataset, d.key_text, d.record_status,
+    kv.key AS column_name,
+    kv.value AS old_new_value,
+    d.payload
+  FROM metrics.mismatch_detail_sample d
+  CROSS JOIN LATERAL jsonb_each_text(d.payload) kv
+) x
+ORDER BY run_date DESC, key_text, column_name;
+
+
+
+
+
+
+
+select * from metrics.mismatch_detail_sample
+
+
+
+
+
+
+
