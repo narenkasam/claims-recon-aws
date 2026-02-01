@@ -16,3 +16,5 @@ logs/
 
 # Docker local
 pgdata/
+claims-recon-aws/
+recon-aws-fargate-pipeline/
